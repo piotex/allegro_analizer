@@ -1,0 +1,5 @@
+mongo_pwd.txt
+reports/*
+geckodriver.log
+.idea/
+__pycache__/

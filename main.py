@@ -1,139 +1,161 @@
+import json
+import time
+
 import pymongo
 from lxml import html
 import requests
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.firefox import GeckoDriverManager
+
+from allegro_analizer.SeleniumClient import SeleniumClient
+from allegro_analizer.k0 import k0
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 
 def main2():
     usr = "pkubon2"
     pwd = ""
+    with open('mongo_pwd.txt') as f:
+        pwd = f.readlines()
 
     client = pymongo.MongoClient(
         f"mongodb://{usr}:{pwd}@ac-1tltdjz-shard-00-00.kdizqwu.mongodb.net:27017,"
         f"ac-1tltdjz-shard-00-01.kdizqwu.mongodb.net:27017,"
         f"ac-1tltdjz-shard-00-02.kdizqwu.mongodb.net:27017/?"
         f"ssl=true&replicaSet=atlas-rba8e3-shard-0&authSource=admin&retryWrites=true&w=majority")
-    db = client.test
 
+    db = client.test
     mydb = client["allegro_database"]
     mycol = mydb["categories_collection"]
 
     mydict = {"name": "John", "address": "Highway 37"}
-
     x = mycol.insert_one(mydict)
 
-def click_categories(browser):
-    xpath_categories = "/html/body/div[2]/div[2]/div/div/div/div/div/div/div/div/div[3]/header/div[2]/div/div[1]/button"
-    element = browser.find_element(by=By.XPATH, value=xpath_categories)
-    browser.execute_script("arguments[0].scrollIntoView();", element)
-    element.click()
 
-def get_touple_name_url(browser, i):
-    xpath_l2 = f"/html/body/div[2]/div[5]/div/div[2]/div/div/div/div/div/div[3]/div[2]/div[1]/div/div/div/section/div[2]/ul/li[{i}]/div/a"
-    element = browser.find_element(by=By.XPATH, value=xpath_l2)
-    return (element.text, element.get_attribute('href'))
+def get_start_end_idx(html: str):
+    start_idx = 0
+    end_idx = len(html)
+    start = "ted&quot;:false}"
+    end = "0"
+    res, start_idx_res = find_from_to_index(html, start, end, start_idx, end_idx)
+    start_idx_res -= 1500 # this selector is after first url, so we bo back 1500 chars
 
-def try_click_accept_pop(browser):
-    try:
-        xpath_accept = "/html/body/div[2]/div[1]/div/div[2]/div/div[2]/button[1]"
-        element = browser.find_element(by=By.XPATH, value=xpath_accept)
-        browser.execute_script("arguments[0].scrollIntoView();", element)
-        element.click()
-    except:
-        pass
+    start_idx = 0
+    start = "</ul></div> </section></div>"
+    end = "</div>"
+    res, last_idx_res = find_from_to_index(html, start, end, start_idx, end_idx)
 
-def get_sub_categories_list_touple_title_url(browser, url):
-    browser.get(url)
-    try_click_accept_pop(browser)
-    k2 = []
-    for j in range(1, 19999):
+    return (start_idx_res, last_idx_res)
+
+def find_from_to_index(data: str, start: str, end: str, start_index: int, end_index: int):
+    for i in range(start_index, len(data)):
+        res = ""
+        is_next = True
+        if i > end_index:
+            return res
+        for j in range(len(start)):
+            if data[i + j] != start[j]:
+                is_next = False
+                break
+        if is_next:
+            i += len(start)
+            k = 0
+            is_end = False
+            while not is_end:
+                is_end = True
+                for l in range(len(end)):
+                    if data[i + k + l] != end[l]:
+                        is_end = False
+                        break
+                if not is_end:
+                    res += data[i + k]
+                k += 1
+            return (res, i + k)
+    return ""
+
+def get_list_name_url_tuple(html, start_idx, last_idx):
+    res_list = []
+    for i in range(9999):
         try:
-            title, url = get_touple_name_url(browser, j)
-            k2.append((title, url))
+            start = "<a href=\""
+            end = "\""
+            url, start_idx = find_from_to_index(html, start, end, start_idx, last_idx)
+            start = "}\">"
+            end = "</a>"
+            name, start_idx = find_from_to_index(html, start, end, start_idx, last_idx)
+            res = (name, url)
+            res_list.append(res)
         except Exception as eee:
             print(eee)
             break
-    return k2
+    return res_list
+
+def wait_for_selector(browser):
+    try:
+        WebDriverWait(browser, 20).until(
+            EC.visibility_of_element_located(
+                (By.XPATH, "//*[@id=\"filters\"]/div[1]/div/div/div/section/div[2]/ul/li[1]/div/a")
+            )
+        )
+    except Exception as eee:
+        print(eee)
+
+def is_last_node(html):
+    start_idx = 400000
+    last_idx = 1000000
+    start = "<span class=\"mgmw_0t\">"
+    end = "\""
+    try:
+        url, start_idx = find_from_to_index(html, start, end, start_idx, last_idx)
+        return True
+    except Exception as eee:
+        return False
+
 
 def get_categories_lists():
-    k1 = range(1, 13)
-    url = "https://allegro.pl/"
-    xpath = "/html/body/div[2]/div/div/div/div/div/div/div/div/div/div[3]/header/div[2]/div/div[1]/div/div/div/div[1]/div/div/div/div/div/div/div[1]/div/div/div[3]/div/div/ul/li/a"
-    xpath = "/html/body/div[2]/div/div/div/div/div/div/div/div/div/div[3]/header/div[2]/div/div[1]/div/div/div/div[4]/div/div/div/div/div/div/div[1]/div/div/div[3]/div/div/ul/li/a"
-
-    # res_path = GeckoDriverManager().install()
     res_path = 'C:\\Users\\pkubon\\.wdm\\drivers\\geckodriver\\win64\\0.33\\geckodriver.exe'
     browser = webdriver.Firefox(executable_path=res_path)
 
-    browser.get(url)
+    base_url = "https://allegro.pl"
 
-    try_click_accept_pop(browser)
-
-    click_categories(browser)
-
-    k0_1 = [
-        "https://allegro.pl/kategoria/telefony-i-akcesoria",
-        "https://allegro.pl/kategoria/komputery",
-        "https://allegro.pl/kategoria/tv-i-video-717",
-        "https://allegro.pl/kategoria/konsole-i-automaty",
-        "https://allegro.pl/kategoria/agd-drobne-67414",
-        "https://allegro.pl/kategoria/agd-wolnostojace-67413",
-        "https://allegro.pl/kategoria/agd-do-zabudowy-67524",
-        "https://allegro.pl/kategoria/fotografia",
-    ]
-    k0_2 = [
-        "https://allegro.pl/kategoria/bizuteria-i-zegarki",
-        "https://allegro.pl/kategoria/bielizna-damska-75993",
-        "https://allegro.pl/kategoria/bielizna-meska-256925",
-        "https://allegro.pl/kategoria/odziez-damska-76033",
-        "https://allegro.pl/kategoria/odziez-meska-1455",
-        "https://allegro.pl/kategoria/obuwie-1469",
-        "https://allegro.pl/kategoria/galanteria-i-dodatki-1487",
-        "https://allegro.pl/kategoria/odziez-obuwie-dodatki-bagaz-300537",
-        "https://allegro.pl/kategoria/przebrania-kostiumy-maski-74170",
-        "https://allegro.pl/kategoria/ciaza-i-macierzynstwo-78013",
-        "https://allegro.pl/kategoria/slub-i-wesele-74169",
-    ]
-    k0_3 = [
-        ["Wyposażenie Domu i Ogrodu", "https://allegro.pl/kategoria/wyposazenie-123"],
-        # ["Narzędzia warsztatowe, budowlane", "https://allegro.pl/kategoria/narzedzia-1536"],
-        # ["Oświetlenie domu", "https://allegro.pl/kategoria/oswietlenie-5317"],
-        # ["Budownictwo i Akcesoria", "https://allegro.pl/kategoria/budownictwo-i-akcesoria-1520"],
-        # ["Ogród, wszystko do ogrodu", "https://allegro.pl/kategoria/ogrod-1532"],
-        # ["Meble", "https://allegro.pl/kategoria/meble-522"],
-    ]
-
+    main_name_url_list = k0.get_k0_3()
     count = 0
-    len_k0_3 = len(k0_3)
-    while len_k0_3 > count:
-        i = count
-        title_list = []
-        url = k0_3[i][-1]
-        for j in range(len(k0_3[i])-1):
-            title_list.append(k0_3[i][j])
+    while count < len(main_name_url_list):
+        try:
+            url = main_name_url_list[count][-1]
+            name_list = main_name_url_list[count][0:-1]
+            browser.get(base_url + url)
+            SeleniumClient.try_click_accept_pop(browser)
+            wait_for_selector(browser)
+            html = browser.page_source
+            is_last_node_res = is_last_node(html)
+            if not is_last_node_res:
+                start_idx, last_idx = get_start_end_idx(html)
+                name_url_list = get_list_name_url_tuple(html, start_idx, last_idx)
+                for elem in name_url_list:
+                    title = elem[0]
+                    url = elem[1]
+                    tmp = [a for a in name_list]
+                    tmp.append(title)
+                    tmp.append(url)
+                    main_name_url_list.append(tmp)
+        except Exception as eee:
+            print(eee)
 
-        res_touple = get_sub_categories_list_touple_title_url(browser, url)
-        for elem_1 in res_touple:
-            title_1 = elem_1[0]
-            url_1 = elem_1[1]
-
-            title_list.append(title_1)
-            title_list.append(url_1)
-            k0_3.append(title_list)
-            # break
-
-        len_k0_3 = len(k0_3)
         count += 1
+        if count % 100 == 0:
+            file_name = "reports/main_name_url_list_" + time.strftime("%Y.%m.%d-%H.%M.%S") + ".json"
+            with open(file_name, 'w') as F:
+                F.write(json.dumps(main_name_url_list))
 
-    print(k0_3)
-    # browser.close()
 
-    # file = open('Failed.txt', 'w')
-    # file.write(html_source)
-    # file.close()
 
 
 if __name__ == '__main__':
