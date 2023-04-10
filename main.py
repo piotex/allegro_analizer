@@ -1,18 +1,9 @@
 import json
+import random
 import time
-
 import pymongo
-from lxml import html
-import requests
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.wait import WebDriverWait
-from webdriver_manager.firefox import GeckoDriverManager
-
-from allegro_analizer.SeleniumClient import SeleniumClient
-from allegro_analizer.k0 import k0
-
+from SeleniumClient import SeleniumClient
+from k0 import k0
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -118,6 +109,10 @@ def is_last_node(html):
     except Exception as eee:
         return False
 
+def save_list_json(main_name_url_list):
+    file_name = "reports/main_name_url_list_" + time.strftime("%Y.%m.%d-%H.%M.%S") + ".json"
+    with open(file_name, 'w') as F:
+        F.write(json.dumps(main_name_url_list))
 
 def get_categories_lists():
     res_path = 'C:\\Users\\pkubon\\.wdm\\drivers\\geckodriver\\win64\\0.33\\geckodriver.exe'
@@ -128,6 +123,7 @@ def get_categories_lists():
     main_name_url_list = k0.get_k0_3()
     count = 0
     while count < len(main_name_url_list):
+        time.sleep(random.randint(0,9))
         try:
             url = main_name_url_list[count][-1]
             name_list = main_name_url_list[count][0:-1]
@@ -151,10 +147,9 @@ def get_categories_lists():
 
         count += 1
         if count % 100 == 0:
-            file_name = "reports/main_name_url_list_" + time.strftime("%Y.%m.%d-%H.%M.%S") + ".json"
-            with open(file_name, 'w') as F:
-                F.write(json.dumps(main_name_url_list))
+            save_list_json(main_name_url_list)
 
+    save_list_json(main_name_url_list)
 
 
 
