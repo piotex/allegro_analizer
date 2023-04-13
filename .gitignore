@@ -1,4 +1,4 @@
-mongo_pwd.txt
+utils/mongo_pwd.txt
 reports/*
 geckodriver.log
 .idea/
